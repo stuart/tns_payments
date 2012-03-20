@@ -114,7 +114,7 @@ class TNSPayments::ConnectionTest < MiniTest::Unit::TestCase
     transaction = mock_transaction
     stub_successful_process_acs_request transaction, "VALID PARES"
     response = @gateway.process_acs_response transaction, "VALID PARES"
-    assert_equal 'AUTHORIZED', response.response['response']['3DSecure']['gatewayCode']
+    assert_equal 'AUTHENTICATION_SUCCESSFUL', response.response['response']['3DSecure']['gatewayCode']
   end
   
   def test_failed_process_acs_request_returns_unauthorized
@@ -286,7 +286,7 @@ private
       'Content-Length'  => '72',
       'Content-Type'    => 'Application/json;charset=UTF-8'
     }).
-    to_return :status => 200, :headers => {}, :body => "{\"3DSecure\":{\"authenticationRedirect\":{\"customized\":{\"acsUrl\":\"https://secure.ap.tnspayments.com:443/acs/MastercardACS/4272b87b-2cc0-4232-a96e-e678ecbe7455\",\"paReq\":\"eAFVkd1ugkAQhe9NfAfCfV1ghVIzrNFq1aY/pNqY9I7AKCQCukILfZ2+SZ+sswq1vePMcGbPfAPDKt1p7yiPSZ55utkzdA2zMI+SbOvpr6u7K1cfim4HVrFEnCwxLCUKeMTjMdiilkSezrlpmJbh6gL80QseBDTjBE3rWcBaSS4ZxkFWCAjCw3jxJGyLG44NrJGQolxMhGnxvu1cu8DOGrIgRTGlMXUU1NocZa49FBGwUx3CvMwKWQvXcoC1Akq5E3FR7AeMITnJGJOvF+YpMNUDdknjlyrXkfaqkkg8R9HmrZotNx8pn8b17HNdGfexX64nfQ+Y+gOioEBhqa25aWsWH3BnYFPeUx2CVCUSs7GvfX8RA4MWPJdgr14anYWpGn8LQGwlwW9XaRVgtc8zpJEE8/cb2CX27VwhDQuCZ7f0bige7xOSpqGmJITJ5AYRbwQwZWXN3QjJ6axU+XfubucHAPGz0w==\"}},\"summaryStatus\":\"AUTHORIZED\",\"xid\":\"OddfZxGSfwm3EhyGzWx0JhPuWD4=\"},\"3DSecureId\":\"#{transaction.three_d_s_id}\",\"merchant\":\"#{@gateway.merchant_id}\",\"response\":{\"3DSecure\":{\"gatewayCode\":\"AUTHORIZED\"}}}"
+    to_return :status => 200, :headers => {}, :body => "{\"3DSecure\":{\"authenticationRedirect\":{\"customized\":{\"acsUrl\":\"https://secure.ap.tnspayments.com:443/acs/MastercardACS/4272b87b-2cc0-4232-a96e-e678ecbe7455\",\"paReq\":\"eAFVkd1ugkAQhe9NfAfCfV1ghVIzrNFq1aY/pNqY9I7AKCQCukILfZ2+SZ+sswq1vePMcGbPfAPDKt1p7yiPSZ55utkzdA2zMI+SbOvpr6u7K1cfim4HVrFEnCwxLCUKeMTjMdiilkSezrlpmJbh6gL80QseBDTjBE3rWcBaSS4ZxkFWCAjCw3jxJGyLG44NrJGQolxMhGnxvu1cu8DOGrIgRTGlMXUU1NocZa49FBGwUx3CvMwKWQvXcoC1Akq5E3FR7AeMITnJGJOvF+YpMNUDdknjlyrXkfaqkkg8R9HmrZotNx8pn8b17HNdGfexX64nfQ+Y+gOioEBhqa25aWsWH3BnYFPeUx2CVCUSs7GvfX8RA4MWPJdgr14anYWpGn8LQGwlwW9XaRVgtc8zpJEE8/cb2CX27VwhDQuCZ7f0bige7xOSpqGmJITJ5AYRbwQwZWXN3QjJ6axU+XfubucHAPGz0w==\"}},\"summaryStatus\":\"AUTHENTICATION_SUCCESSFUL\",\"xid\":\"OddfZxGSfwm3EhyGzWx0JhPuWD4=\"},\"3DSecureId\":\"#{transaction.three_d_s_id}\",\"merchant\":\"#{@gateway.merchant_id}\",\"response\":{\"3DSecure\":{\"gatewayCode\":\"AUTHENTICATION_SUCCESSFUL\"}}}"
   end
   
   def stub_failed_process_acs_request transaction, pares
@@ -301,7 +301,7 @@ private
       'Content-Length'  => '74',
       'Content-Type'    => 'Application/json;charset=UTF-8'
     }).
-    to_return :status => 200, :headers => {}, :body => "{\"3DSecure\":{\"authenticationRedirect\":{\"customized\":{\"acsUrl\":\"https://secure.ap.tnspayments.com:443/acs/MastercardACS/4272b87b-2cc0-4232-a96e-e678ecbe7455\",\"paReq\":\"eAFVkd1ugkAQhe9NfAfCfV1ghVIzrNFq1aY/pNqY9I7AKCQCukILfZ2+SZ+sswq1vePMcGbPfAPDKt1p7yiPSZ55utkzdA2zMI+SbOvpr6u7K1cfim4HVrFEnCwxLCUKeMTjMdiilkSezrlpmJbh6gL80QseBDTjBE3rWcBaSS4ZxkFWCAjCw3jxJGyLG44NrJGQolxMhGnxvu1cu8DOGrIgRTGlMXUU1NocZa49FBGwUx3CvMwKWQvXcoC1Akq5E3FR7AeMITnJGJOvF+YpMNUDdknjlyrXkfaqkkg8R9HmrZotNx8pn8b17HNdGfexX64nfQ+Y+gOioEBhqa25aWsWH3BnYFPeUx2CVCUSs7GvfX8RA4MWPJdgr14anYWpGn8LQGwlwW9XaRVgtc8zpJEE8/cb2CX27VwhDQuCZ7f0bige7xOSpqGmJITJ5AYRbwQwZWXN3QjJ6axU+XfubucHAPGz0w==\"}},\"summaryStatus\":\"UNAUTHORIZED\",\"xid\":\"OddfZxGSfwm3EhyGzWx0JhPuWD4=\"},\"3DSecureId\":\"#{transaction.three_d_s_id}\",\"merchant\":\"#{@gateway.merchant_id}\",\"response\":{\"3DSecure\":{\"gatewayCode\":\"UNAUTHORIZED\"}}}"
+    to_return :status => 200, :headers => {}, :body => "{\"3DSecure\":{\"authenticationRedirect\":{\"customized\":{\"acsUrl\":\"https://secure.ap.tnspayments.com:443/acs/MastercardACS/4272b87b-2cc0-4232-a96e-e678ecbe7455\",\"paReq\":\"eAFVkd1ugkAQhe9NfAfCfV1ghVIzrNFq1aY/pNqY9I7AKCQCukILfZ2+SZ+sswq1vePMcGbPfAPDKt1p7yiPSZ55utkzdA2zMI+SbOvpr6u7K1cfim4HVrFEnCwxLCUKeMTjMdiilkSezrlpmJbh6gL80QseBDTjBE3rWcBaSS4ZxkFWCAjCw3jxJGyLG44NrJGQolxMhGnxvu1cu8DOGrIgRTGlMXUU1NocZa49FBGwUx3CvMwKWQvXcoC1Akq5E3FR7AeMITnJGJOvF+YpMNUDdknjlyrXkfaqkkg8R9HmrZotNx8pn8b17HNdGfexX64nfQ+Y+gOioEBhqa25aWsWH3BnYFPeUx2CVCUSs7GvfX8RA4MWPJdgr14anYWpGn8LQGwlwW9XaRVgtc8zpJEE8/cb2CX27VwhDQuCZ7f0bige7xOSpqGmJITJ5AYRbwQwZWXN3QjJ6axU+XfubucHAPGz0w==\"}},\"summaryStatus\":\"AUTHENTICATION_FAILED\",\"xid\":\"OddfZxGSfwm3EhyGzWx0JhPuWD4=\"},\"3DSecureId\":\"#{transaction.three_d_s_id}\",\"merchant\":\"#{@gateway.merchant_id}\",\"response\":{\"3DSecure\":{\"gatewayCode\":\"AUTHENTICATION_FAILED\"}}}"
   end
   
   def mock_transaction

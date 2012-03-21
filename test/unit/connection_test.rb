@@ -17,33 +17,33 @@ class TNSPayments::ConnectionTest < MiniTest::Unit::TestCase
   end
 
   def test_purchase_with_session_token_makes_a_successful_purchase
-    stub_successful_session_token_purchase_request mock_transaction, 'SESSIONTOKEN'
-    assert @gateway.purchase(mock_transaction, 'SESSIONTOKEN').success?
+    stub_successful_session_token_purchase_request mock_transaction
+    assert @gateway.purchase(mock_transaction).success?
   end
 
   def test_purchase_with_session_token_makes_an_unsuccessful_purchase
-    stub_unsuccessful_session_token_purchase_request mock_transaction, 'SESSIONTOKEN'
-    refute @gateway.purchase(mock_transaction, 'SESSIONTOKEN').success?
+    stub_unsuccessful_session_token_purchase_request mock_transaction
+    refute @gateway.purchase(mock_transaction).success?
   end
 
   def test_purchase_with_session_token_can_deal_with_timeout_errors
-    stub_session_token_purchase_request(mock_transaction, 'SESSIONTOKEN').to_timeout
-    refute @gateway.purchase(mock_transaction, 'SESSIONTOKEN').success?
+    stub_session_token_purchase_request(mock_transaction).to_timeout
+    refute @gateway.purchase(mock_transaction).success?
   end
 
   def test_purchase_with_credit_card_token_makes_a_successful_purchase
-    stub_successful_credit_card_token_purchase_request(mock_transaction, '9111111111111111')
-    assert @gateway.purchase(mock_transaction, '9111111111111111').success?
+    stub_successful_credit_card_token_purchase_request(mock_transaction_with_cc_token)
+    assert @gateway.purchase(mock_transaction_with_cc_token).success?
   end
 
   def test_purchase_with_credit_card_token_makes_an_unsuccessful_purchase
-    stub_unsuccessful_credit_card_token_purchase_request mock_transaction, '9111111111111111'
-    refute @gateway.purchase(mock_transaction, '9111111111111111').success?
+    stub_unsuccessful_credit_card_token_purchase_request mock_transaction_with_cc_token
+    refute @gateway.purchase(mock_transaction_with_cc_token).success?
   end
 
   def test_purchase_with_credit_card_token_can_deal_with_timeout_errors
-    stub_credit_card_token_purchase_request(mock_transaction, '9111111111111111').to_timeout
-    refute @gateway.purchase(mock_transaction, '9111111111111111').success?
+    stub_credit_card_token_purchase_request(mock_transaction_with_cc_token).to_timeout
+    refute @gateway.purchase(mock_transaction_with_cc_token).success?
   end
 
   def test_refund_makes_successful_refund
@@ -105,23 +105,38 @@ class TNSPayments::ConnectionTest < MiniTest::Unit::TestCase
     transaction.expect :three_d_s_id, 'randomstring'
     stub_successful_session_token_request
     token = @gateway.session_token
-    stub_successful_check_enrollment_request transaction, token
-    response = @gateway.check_enrollment transaction, token
+    stub_successful_check_enrollment_request transaction
+    response = @gateway.check_enrollment transaction, 'http://example.com/postback'
     assert_equal 'CARD_ENROLLED', response.response['response']['3DSecure']['gatewayCode']
+    assert response.enrolled?
   end
-
+  
+  def test_check_enrollment_with_simple_form_option
+    transaction = mock_transaction
+    transaction.expect :three_d_s_id, 'randomstring'
+    stub_successful_session_token_request
+    token = @gateway.session_token
+    stub_check_enrollment_request_with_simple transaction
+    response = @gateway.check_enrollment transaction, 'http://example.com/postback', :page_generation_mode => 'SIMPLE'
+    assert_equal 'CARD_ENROLLED', response.response['response']['3DSecure']['gatewayCode']
+    assert response.enrolled?
+    assert_equal "<html></html>", response.html_body_content
+  end
+  
   def test_successful_process_acs_request_returns_authorized
     transaction = mock_transaction
     stub_successful_process_acs_request transaction, "VALID PARES"
     response = @gateway.process_acs_response transaction, "VALID PARES"
     assert_equal 'AUTHENTICATION_SUCCESSFUL', response.response['response']['3DSecure']['gatewayCode']
+    assert response.authenticated?
   end
   
   def test_failed_process_acs_request_returns_unauthorized
     transaction = mock_transaction
     stub_failed_process_acs_request transaction, "INVALID PARES"
     response = @gateway.process_acs_response transaction, "INVALID PARES"
-    assert_equal 'UNAUTHORIZED', response.response['response']['3DSecure']['gatewayCode']
+    assert_equal 'AUTHENTICATION_FAILED', response.response['response']['3DSecure']['gatewayCode']
+    refute response.authenticated?
   end
   
 private
@@ -146,23 +161,23 @@ private
       to_return(:status => 200, :body => '{"result":"FAILURE"}', :headers => {})
   end
 
-  def stub_successful_credit_card_token_purchase_request transaction, token
-    stub_credit_card_token_purchase_request(transaction, token).
+  def stub_successful_credit_card_token_purchase_request transaction
+    stub_credit_card_token_purchase_request(transaction).
       to_return(:status => 200, :body => %[{"card":{"expiry":{"month":"5","year":"13"},"number":"xxxxxxxxxxxxxxxx","scheme":"MASTERCARD"},"merchant":"","order":{"id":"#{transaction.order_id}","totalAuthorizedAmount":0.00,"totalCapturedAmount":0.00,"totalRefundedAmount":0.00},"response":{"acquirerCode":"00","gatewayCode":"APPROVED"},"result":"SUCCESS","transaction":{"acquirer":{"id":"STGEORGE"},"amount":"#{transaction.amount}","authorizationCode":"000576","batch":20110707,"currency":"AUD","frequency":"SINGLE","id":"72637779534c67696c54b26f220dc4d3","receipt":"110707000576","source":"INTERNET","terminal":"08845778","type":"PAYMENT"}}], :headers => {})
   end
 
-  def stub_unsuccessful_credit_card_token_purchase_request transaction, token
-    stub_credit_card_token_purchase_request(transaction, token).
+  def stub_unsuccessful_credit_card_token_purchase_request transaction
+    stub_credit_card_token_purchase_request(transaction).
       to_return(:status => 200, :body => '{"result":"FAILURE"}', :headers => {})
   end
 
-  def stub_successful_session_token_purchase_request transaction, token
-    stub_session_token_purchase_request(transaction, token).
+  def stub_successful_session_token_purchase_request transaction
+    stub_session_token_purchase_request(transaction).
       to_return(:status => 200, :body => %[{"card":{"expiry":{"month":"5","year":"13"},"number":"xxxxxxxxxxxxxxxx","scheme":"MASTERCARD"},"merchant":"","order":{"id":"#{transaction.order_id}","totalAuthorizedAmount":0.00,"totalCapturedAmount":0.00,"totalRefundedAmount":0.00},"response":{"acquirerCode":"00","gatewayCode":"APPROVED"},"result":"SUCCESS","transaction":{"acquirer":{"id":"STGEORGE"},"amount":"#{transaction.amount}","authorizationCode":"000576","batch":20110707,"currency":"AUD","frequency":"SINGLE","id":"72637779534c67696c54b26f220dc4d3","receipt":"110707000576","source":"INTERNET","terminal":"08845778","type":"PAYMENT"}}], :headers => {})
   end
 
-  def stub_unsuccessful_session_token_purchase_request transaction, token
-    stub_session_token_purchase_request(transaction, token).
+  def stub_unsuccessful_session_token_purchase_request transaction
+    stub_session_token_purchase_request(transaction).
       to_return(:status => 200, :body => '{"result":"FAILURE"}', :headers => {})
   end
 
@@ -201,12 +216,12 @@ private
            }
   end
 
-  def stub_session_token_purchase_request transaction, token
+  def stub_session_token_purchase_request transaction
     stub_request(:put, /https:\/\/:#{@gateway.api_key}@secure\.ap\.tnspayments\.com\/api\/rest\/version\/4\/merchant\/#{@gateway.merchant_id}\/order\/#{transaction.order_id}\/transaction\/#{transaction.transaction_id}/).
       with :body => JSON.generate({
              'apiOperation' => 'PAY',
              'order'        => {'reference' => transaction.reference.to_s},
-             'cardDetails'  => {'session' => token.to_s},
+             'cardDetails'  => {'session' => transaction.token.to_s},
              'transaction'  => {'amount' => transaction.amount.to_s, 'currency' => transaction.currency, 'reference' => transaction.transaction_id.to_s}
            }),
            :headers => {
@@ -217,12 +232,12 @@ private
            }
   end
 
-  def stub_credit_card_token_purchase_request transaction, token
+  def stub_credit_card_token_purchase_request transaction
     stub_request(:put, /https:\/\/:#{@gateway.api_key}@secure\.ap\.tnspayments\.com\/api\/rest\/version\/4\/merchant\/#{@gateway.merchant_id}\/order\/#{transaction.order_id}\/transaction\/#{transaction.transaction_id}/).
       with :body => JSON.generate({
              'apiOperation' => 'PAY',
              'order'        => {'reference' => transaction.reference.to_s},
-             'cardDetails'  => {'cardToken' => token.to_s},
+             'cardDetails'  => {'cardToken' => transaction.token.to_s},
              'transaction'  => {'amount' => transaction.amount.to_s, 'currency' => transaction.currency, 'reference' => transaction.transaction_id.to_s}
            }),
            :headers => {
@@ -257,21 +272,38 @@ private
       with(:headers => {'Accept'=>'*/*', 'Content-Type'=>'Application/json;charset=UTF-8'}, :body => {})
   end
 
-  def stub_successful_check_enrollment_request transaction, token
+  def stub_successful_check_enrollment_request transaction
     stub_request(:put, /https:\/\/:#{@gateway.api_key}@secure\.ap\.tnspayments\.com\/api\/rest\/version\/4\/merchant\/#{@gateway.merchant_id}\/3DSecureId\/#{transaction.three_d_s_id}/).
       with(:body => JSON.generate({
-           '3DSecure'     => {'authenticationRedirect' => {'pageGenerationMode' => 'CUSTOMIZED', 'responseUrl' => 'http://google.com/'}},
+           '3DSecure'     => {'authenticationRedirect' => {'pageGenerationMode' => 'CUSTOMIZED', 'responseUrl' => 'http://example.com/postback'}},
            'apiOperation' => 'CHECK_3DS_ENROLLMENT',
-           'cardDetails'  => {'session' => token},
+           'cardDetails'  => {'session' => transaction.token},
            'transaction'  => {'amount' => transaction.amount.to_s, 'currency' => transaction.currency}
          }),
          :headers => {
            'Accept'          => '*/*',
            'Accept-Encoding' => 'gzip, deflate',
-           'Content-Length'  => '237',
+           'Content-Length'  => '246',
            'Content-Type'    => 'Application/json;charset=UTF-8'
          }).
       to_return :status => 200, :headers => {}, :body => "{\"3DSecure\":{\"authenticationRedirect\":{\"customized\":{\"acsUrl\":\"https://secure.ap.tnspayments.com:443/acs/MastercardACS/4272b87b-2cc0-4232-a96e-e678ecbe7455\",\"paReq\":\"eAFVkd1ugkAQhe9NfAfCfV1ghVIzrNFq1aY/pNqY9I7AKCQCukILfZ2+SZ+sswq1vePMcGbPfAPDKt1p7yiPSZ55utkzdA2zMI+SbOvpr6u7K1cfim4HVrFEnCwxLCUKeMTjMdiilkSezrlpmJbh6gL80QseBDTjBE3rWcBaSS4ZxkFWCAjCw3jxJGyLG44NrJGQolxMhGnxvu1cu8DOGrIgRTGlMXUU1NocZa49FBGwUx3CvMwKWQvXcoC1Akq5E3FR7AeMITnJGJOvF+YpMNUDdknjlyrXkfaqkkg8R9HmrZotNx8pn8b17HNdGfexX64nfQ+Y+gOioEBhqa25aWsWH3BnYFPeUx2CVCUSs7GvfX8RA4MWPJdgr14anYWpGn8LQGwlwW9XaRVgtc8zpJEE8/cb2CX27VwhDQuCZ7f0bige7xOSpqGmJITJ5AYRbwQwZWXN3QjJ6axU+XfubucHAPGz0w==\"}},\"summaryStatus\":\"CARD_ENROLLED\",\"xid\":\"OddfZxGSfwm3EhyGzWx0JhPuWD4=\"},\"3DSecureId\":\"#{transaction.three_d_s_id}\",\"merchant\":\"#{@gateway.merchant_id}\",\"response\":{\"3DSecure\":{\"gatewayCode\":\"CARD_ENROLLED\"}}}"
+  end
+  
+  def stub_check_enrollment_request_with_simple transaction
+    stub_request(:put, /https:\/\/:#{@gateway.api_key}@secure\.ap\.tnspayments\.com\/api\/rest\/version\/4\/merchant\/#{@gateway.merchant_id}\/3DSecureId\/#{transaction.three_d_s_id}/).
+      with(:body => JSON.generate({
+           '3DSecure'     => {'authenticationRedirect' => {'pageGenerationMode' => 'SIMPLE', 'responseUrl' => 'http://example.com/postback'}},
+           'apiOperation' => 'CHECK_3DS_ENROLLMENT',
+           'cardDetails'  => {'session' => transaction.token},
+           'transaction'  => {'amount' => transaction.amount.to_s, 'currency' => transaction.currency}
+         }),
+         :headers => {
+           'Accept'          => '*/*',
+           'Accept-Encoding' => 'gzip, deflate',
+           'Content-Length'  => '242',
+           'Content-Type'    => 'Application/json;charset=UTF-8'
+         }).
+      to_return :status => 200, :headers => {}, :body => "{\"3DSecure\":{\"authenticationRedirect\":{\"simple\":{\"htmlBodyContent\":\"<html></html>\"}},\"summaryStatus\":\"CARD_ENROLLED\",\"xid\":\"OddfZxGSfwm3EhyGzWx0JhPuWD4=\"},\"3DSecureId\":\"#{transaction.three_d_s_id}\",\"merchant\":\"#{@gateway.merchant_id}\",\"response\":{\"3DSecure\":{\"gatewayCode\":\"CARD_ENROLLED\"}}}"
   end
   
   def stub_successful_process_acs_request transaction, pares
@@ -312,6 +344,13 @@ private
     mock.expect :transaction_id, 1
     mock.expect :reference, 'AUD123'
     mock.expect :three_d_s_id, '123abc'
+    mock.expect :token, 'SESSIONTOKEN'
+    mock
+  end
+  
+  def mock_transaction_with_cc_token
+    mock = mock_transaction
+    mock.expect :token, '9111111111111111'
     mock
   end
 end

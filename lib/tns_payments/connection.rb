@@ -20,12 +20,12 @@ module TNSPayments
       "#{host}/form/#{session_token}"
     end
 
-    def purchase transaction, token
+    def purchase transaction
       order_id       = transaction.order_id
       transaction_id = transaction.transaction_id
       params         = {
         'apiOperation' => 'PAY',
-        'cardDetails'  => card_details(token),
+        'cardDetails'  => card_details(transaction.token),
         'order'        => {'reference' => transaction.reference},
         'transaction'  => {'amount'    => transaction.amount.to_s, 'currency' => transaction.currency, 'reference' => transaction_id.to_s}
       }
@@ -59,11 +59,13 @@ module TNSPayments
       end
     end
 
-    def check_enrollment transaction, token
+    def check_enrollment transaction, url, options = {}
+      options = {:page_generation_mode => 'CUSTOMIZED'}.merge(options)
+      
       params = {
-        '3DSecure'     => {'authenticationRedirect' => {'pageGenerationMode' => 'CUSTOMIZED', 'responseUrl' => 'http://google.com/'}},
+        '3DSecure'     => {'authenticationRedirect' => {'pageGenerationMode' => options[:page_generation_mode], 'responseUrl' => url}},
         'apiOperation' => 'CHECK_3DS_ENROLLMENT',
-        'cardDetails'  => card_details(token),
+        'cardDetails'  => card_details(transaction.token),
         'transaction'  => {'amount' => transaction.amount.to_s, 'currency' => transaction.currency}
       }
 
